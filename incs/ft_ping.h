@@ -26,6 +26,8 @@ typedef struct s_env {
     pid_t pid;
     struct ip *ip;
     struct icmp *icmp;
+    struct addrinfo hints;
+    struct addrinfo *res;
 
     // communication data
     unsigned int count;

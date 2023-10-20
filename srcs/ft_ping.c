@@ -49,6 +49,7 @@ char *get_ip_from_hostname(char *hostname) {
     struct sockaddr_in *sa_in;
     
     ft_memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
 
     int status = getaddrinfo(hostname, NULL, &hints, &res);
     if (status < 0) {
@@ -56,7 +57,7 @@ char *get_ip_from_hostname(char *hostname) {
     }
 
     sa_in = (struct sockaddr_in *)res->ai_addr;
-    char *ip_address = malloc(INET_ADDRSTRLEN);
+    char *ip_address = malloc(INET_ADDRSTRLEN*sizeof(char));
     if (ip_address == NULL) {
         freeaddrinfo(res);
         error_exit("malloc failed");
@@ -97,6 +98,26 @@ void signal_handler(int signal) {
     if (signal == SIGINT) {
         print_stats(&env);
     }
+    return ;
+}
+
+void open_socket(t_env *env) {
+    ft_memset(&(env->hints), 0, sizeof(env->hints));
+    env->hints.ai_family = AF_INET;
+    env->hints.ai_socktype = SOCK_RAW;
+    env->hints.ai_protocol = IPPROTO_ICMP;
+
+    if (getaddrinfo(env->host_dst, NULL, &(env->hints), &(env->res)) < 0) {
+        error_exit("get_addr_info: unknown host");
+    }
+    if ((env->socket_id = socket(env->res->ai_family, env->res->ai_socktype, env->res->ai_protocol)) < 0) {
+        error_exit("socket: error when creating the socket");
+    }
+    int option_value = 1;
+    if (setsockopt(env->socket_id, IPPROTO_IP, IP_HDRINCL, &option_value, sizeof(option_value)) < 0) {
+        error_exit("setsockopt: error when setting up the socket's options");
+    }
+    return ;
 }
 
 int main(int ac, char **av) {
@@ -118,6 +139,6 @@ int main(int ac, char **av) {
     env.host_src = "0.0.0.0"; // us
     env.host_dst = get_ip_from_hostname(env.hostname);
     env.min = DBL_MAX;
-    // open socket
+    open_socket(&env);
     // loop
 }
