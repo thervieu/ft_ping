@@ -28,6 +28,7 @@ typedef struct s_env {
     struct icmp *icmp;
     struct addrinfo hints;
     struct addrinfo *res;
+    char buffer[1000];
 
     // communication data
     unsigned int count;
@@ -40,7 +41,7 @@ typedef struct s_env {
 
     // calculus data
     unsigned int packets_sent;
-    unsigned int packets_received;
+    unsigned int packets_recv;
     double min;
     double max;
 

@@ -91,6 +91,7 @@ void arg_handler(t_env *env, int ac, char **av) {
 void print_stats(t_env *env) {
     (void)env;
     printf("print_stats\n");
+    exit(0);
 }
 
 
@@ -120,6 +121,35 @@ void open_socket(t_env *env) {
     return ;
 }
 
+void print_general_data(t_env *env) {
+    (void)env;
+    printf("print_general_data");
+    return;
+}
+
+void setup_send(t_env *env) {
+    (void)env;
+}
+
+void loop(t_env *env) {
+    struct timeval beg;
+    struct timeval now;
+    (void)beg;
+    (void)now;
+
+    env->packets_sent = 0;
+    env->packets_recv = 0;
+    print_general_data(env);
+    while (true) {
+        setup_send(env);
+        if (sendto(env->socket_id, env->buffer, sizeof(env->buffer), 0, env->res->ai_addr, env->res->ai_addrlen) < 0) {
+            error_exit("sendto: could not send");
+        }
+        env->packets_sent++;
+        // receive
+    }
+}
+
 int main(int ac, char **av) {
     if (ac < 2) {
         usage_error();
@@ -140,5 +170,5 @@ int main(int ac, char **av) {
     env.host_dst = get_ip_from_hostname(env.hostname);
     env.min = DBL_MAX;
     open_socket(&env);
-    // loop
+    loop(&env);
 }
