@@ -11,20 +11,27 @@
 # include <sys/time.h>
 # include <stdbool.h>
 # include <stdlib.h>
+# include <float.h>
 
 typedef struct s_env {
     // unused flag
     bool verbose;
 
     // names
-    char *hostname_dst;
-    char *host_dest;
+    char *hostname;
+    char *host_dst;
     char *host_src;
 
     // communication structures
     pid_t pid;
     struct ip *ip;
     struct icmp *icmp;
+
+    // communication data
+    unsigned int count;
+    unsigned int interval;
+    unsigned int timeout;
+    unsigned int ttl;
 
     // socket
     int socket_id;

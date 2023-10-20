@@ -83,6 +83,7 @@ void arg_handler(t_env *env, int ac, char **av) {
             error_exit("too many arguments");
         }
     }
+    env->hostname = hostname;
     return ;
 }
 
@@ -109,5 +110,14 @@ int main(int ac, char **av) {
 
     env.pid = getpid();
     signal(SIGINT, signal_handler);
+    env.count = 0;
+    env.interval = 1;
+    env.timeout = 1;
+    env.ttl = 64;
 
+    env.host_src = "0.0.0.0"; // us
+    env.host_dst = get_ip_from_hostname(env.hostname);
+    env.min = DBL_MAX;
+    // open socket
+    // loop
 }
