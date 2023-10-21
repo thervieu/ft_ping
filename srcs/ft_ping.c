@@ -127,9 +127,87 @@ void print_general_data(t_env *env) {
     return;
 }
 
-void setup_send(t_env *env) {
-    (void)env;
+short my_checksum(unsigned short *data, int len) {
+    unsigned long checksum = 0;
+
+    while (len > 1) {
+        checksum += *data++;
+        len -= sizeof(unsigned short);
+    }
+    if (len)
+        checksum += *(unsigned char*)data;
+
+    while (checksum >> 16) {
+        checksum = (checksum & 0xFFFF) + (checksum >> 16);
+    }
+    return (short)~checksum;
 }
+
+void setup_send(t_env *env) {
+    ft_memset(&(env->buffer), 0, sizeof(env->buffer));
+    env->ip->ip_v = 4;            // Set the IP version to IPv4
+    env->ip->ip_hl = 5;           // Set the header length to 20 bytes (5 words)
+    env->ip->ip_tos = 0;          // Type of Service (set to 0 for default)
+    env->ip->ip_len = htons(sizeof(env->buffer));
+    env->ip->ip_id = 0; // Unique identification (you can choose a suitable value)
+    env->ip->ip_off = 0;          // Fragment offset and flags (set to 0 for no fragmentation)
+    env->ip->ip_ttl = env->ttl;         // Time to Live (adjust as needed)
+    env->ip->ip_p = env->res->ai_protocol;  // Protocol (e.g., ICMP)
+    env->ip->ip_sum = 0;          // Set checksum to 0 for now (calculate it later)
+    inet_pton(env->res->ai_family, env->host_src, &(env->ip->ip_src.s_addr));
+    inet_pton(env->res->ai_family, env->host_dst, &(env->ip->ip_dst.s_addr));
+
+    env->icmp->icmp_type = ICMP_ECHO;     // Set the ICMP message type to Echo Request
+    env->icmp->icmp_code = 0;             // Set the code to 0 (no subcode for Echo Request)
+    env->icmp->icmp_hun.ih_idseq.icd_id = env->pid;    // Identifier (choose a suitable value)
+    env->icmp->icmp_hun.ih_idseq.icd_seq = env->seq;
+    env->icmp->icmp_cksum = my_checksum((unsigned short*)(env->icmp), sizeof(env->icmp));         // Set checksum to 0 for now (calculate it later)
+}
+
+void setup_receive(t_env *env) {
+    ft_memset(&(env->buffer), 0, sizeof(env->buffer));
+	env->iov[0].iov_base = env->buffer;
+	env->iov[0].iov_len = sizeof(env->buffer);
+	env->msg.msg_name = env->res->ai_addr;
+	env->msg.msg_namelen = env->res->ai_addrlen;
+	env->msg.msg_iov = env->iov;
+	env->msg.msg_iovlen = 1;
+	env->msg.msg_control = &(env->buffer_control);
+	env->msg.msg_controllen = sizeof(env->buffer_control);
+	env->msg.msg_flags = 0;
+}
+
+void timer(int interval)
+{
+	struct timeval tv_current;
+	struct timeval tv_next;
+
+	if (gettimeofday(&tv_current, NULL) < 0)
+		error_exit("Error gettimeofday\n");
+	tv_next = tv_current;
+	tv_next.tv_sec += interval;
+	while (tv_current.tv_sec < tv_next.tv_sec ||
+			tv_current.tv_usec < tv_next.tv_usec)
+	{
+		if (gettimeofday(&tv_current, NULL) < 0)
+			error_exit("Error gettimeofday\n");
+	}
+}
+
+bool receive_packet(t_env *env) {
+    setup_receive(env);
+    int nb_receive = recvmsg(env->socket_id, &(env->msg), MSG_DONTWAIT);
+    if (env->icmp->icmp_hun.ih_idseq.icd_id == env->pid) {
+        env->packets_recv++;
+        // calculate stats
+        printf("got echo back: %lu bytes\n", nb_receive - sizeof(*(env->ip)));
+        timer(env->interval);
+        env->seq++;
+        return (false);
+    }
+    return (true);
+}
+
 
 void loop(t_env *env) {
     struct timeval beg;
@@ -139,6 +217,7 @@ void loop(t_env *env) {
 
     env->packets_sent = 0;
     env->packets_recv = 0;
+    env->seq = 0;
     print_general_data(env);
     while (true) {
         setup_send(env);
@@ -146,7 +225,8 @@ void loop(t_env *env) {
             error_exit("sendto: could not send");
         }
         env->packets_sent++;
-        // receive
+        while (receive_packet(env))
+            ;
     }
 }
 
@@ -170,5 +250,8 @@ int main(int ac, char **av) {
     env.host_dst = get_ip_from_hostname(env.hostname);
     env.min = DBL_MAX;
     open_socket(&env);
+    env.ip = (struct ip *)env.buffer;
+    env.icmp = (struct icmp *)(env.ip + 1);
     loop(&env);
+    return 0;
 }
