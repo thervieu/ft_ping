@@ -21,7 +21,7 @@ $(NAME): $(OBJS)
 	@gcc $(FLAGS) -o $(NAME) $(OBJS)
 	@echo ""
 	@echo "Exec ft_ping created !"
-	@echo "usage: ./ft_ping [equation]"
+	@echo "usage: ./ft_ping [address]"
 
 all: $(NAME)
 
